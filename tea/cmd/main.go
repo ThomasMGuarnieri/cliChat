@@ -39,7 +39,12 @@ func main() {
 			case err := <-c.Error():
 				if err == io.EOF {
 					fmt.Println("Connection closed connection from server.")
+					// TODO: Handle error with tea
 				} else {
+					// TODO: This always happen when hit ctrl + c
+					//  think in another way to exit this, or fix the panic
+					//  maybe we should finish this routine before exit the main
+					//  program, dont know
 					panic(err)
 				}
 			case msg := <-c.Incoming():
@@ -71,6 +76,7 @@ func initialModel(cc client.ChatClient) model {
 	ta.Placeholder = "Send a message..."
 	ta.Focus()
 
+	// TODO: This can be prettier
 	ta.Prompt = "┃ "
 	ta.CharLimit = 144
 
@@ -83,6 +89,7 @@ func initialModel(cc client.ChatClient) model {
 	ta.ShowLineNumbers = false
 
 	vp := viewport.New(30, 5)
+	// TODO: this also can be prettier
 	vp.SetContent(`Bem vindo ao chat!
 Seja gentil e aperte Enter.`)
 
@@ -99,6 +106,8 @@ Seja gentil e aperte Enter.`)
 }
 
 func (m model) Init() tea.Cmd {
+	// TODO: May ask for the user name here?
+	//  or other screen just to get the name
 	return textarea.Blink
 }
 
@@ -126,6 +135,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.textarea.Reset()
 		}
 	case protocol.MessageCommand:
+		// TODO: Set the user name here
 		m.messages = append(m.messages, m.senderStyle.Render("Out: ")+msg.Message)
 		m.viewport.SetContent(strings.Join(m.messages, "\n"))
 		m.viewport.GotoBottom()
