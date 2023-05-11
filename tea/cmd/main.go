@@ -38,7 +38,8 @@ func main() {
 			select {
 			case err := <-c.Error():
 				if err == io.EOF {
-					fmt.Println("Connection closed connection from server.")
+					program.Send(err)
+					log.Println("Connection closed connection from server.")
 					// TODO: Handle error with tea
 				} else {
 					// TODO: This always happen when hit ctrl + c
@@ -88,7 +89,7 @@ func initialModel(cc client.ChatClient) model {
 
 	ta.ShowLineNumbers = false
 
-	vp := viewport.New(30, 5)
+	vp := viewport.New(80, 20)
 	// TODO: this also can be prettier
 	vp.SetContent(`Bem vindo ao chat!
 Seja gentil e aperte Enter.`)
@@ -108,7 +109,7 @@ Seja gentil e aperte Enter.`)
 func (m model) Init() tea.Cmd {
 	// TODO: May ask for the user name here?
 	//  or other screen just to get the name
-	return textarea.Blink
+	return tea.Batch(textarea.Blink, tea.EnterAltScreen)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -142,7 +143,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// We handle errors just like any other message
 	case errMsg:
 		m.err = msg
-		return m, nil
+		return m, tea.Quit
 	}
 
 	return m, tea.Batch(tiCmd, vpCmd)
