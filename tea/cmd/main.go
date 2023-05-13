@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -65,14 +66,18 @@ type (
 
 type model struct {
 	c           client.ChatClient
-	viewport    viewport.Model
-	messages    []string
-	textarea    textarea.Model
-	senderStyle lipgloss.Style
+	emptyName   bool
 	err         error
+	messages    []string
+	name        string
+	senderStyle lipgloss.Style
+	textInput   textinput.Model
+	textarea    textarea.Model
+	viewport    viewport.Model
 }
 
 func initialModel(cc client.ChatClient) model {
+	// TEXT AREA
 	ta := textarea.New()
 	ta.Placeholder = "Send a message..."
 	ta.Focus()
@@ -89,30 +94,77 @@ func initialModel(cc client.ChatClient) model {
 
 	ta.ShowLineNumbers = false
 
+	ta.KeyMap.InsertNewline.SetEnabled(false)
+
+	// VIEWPORT
 	vp := viewport.New(80, 20)
-	// TODO: this also can be prettier
 	vp.SetContent(`Bem vindo ao chat!
 Seja gentil e aperte Enter.`)
 
-	ta.KeyMap.InsertNewline.SetEnabled(false)
+	// TEXT INPUT
+	ti := textinput.New()
+	ti.Placeholder = "Valter Branco"
+	ti.Focus()
+	ti.CharLimit = 156
+	ti.Width = 20
 
 	return model{
 		c:           cc,
-		textarea:    ta,
-		messages:    []string{},
-		viewport:    vp,
-		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
+		emptyName:   true,
 		err:         nil,
+		messages:    []string{},
+		name:        "Out",
+		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
+		textarea:    ta,
+		textInput:   ti,
+		viewport:    vp,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	// TODO: May ask for the user name here?
-	//  or other screen just to get the name
-	return tea.Batch(textarea.Blink, tea.EnterAltScreen)
+	return tea.Batch(textarea.Blink, tea.EnterAltScreen, textinput.Blink)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if msg, ok := msg.(tea.KeyMsg); ok {
+		k := msg.String()
+		if k == "esc" || k == "ctrl+c" {
+			return m, tea.Quit
+		}
+	}
+
+	if !m.emptyName {
+		return updateChat(msg, m)
+	}
+
+	return updateName(msg, m)
+}
+
+func (m model) View() string {
+	if !m.emptyName {
+		return chatView(m)
+	}
+
+	return nameView(m)
+}
+
+func chatView(m model) string {
+	return fmt.Sprintf(
+		"%s\n\n%s",
+		m.viewport.View(),
+		m.textarea.View(),
+	) + "\n\n"
+}
+
+func nameView(m model) string {
+	return fmt.Sprintf(
+		"Say your name\n\n%s\n\n%s",
+		m.textInput.View(),
+		"(esc to quit)",
+	) + "\n"
+}
+
+func updateChat(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 	var (
 		tiCmd tea.Cmd
 		vpCmd tea.Cmd
@@ -124,9 +176,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
-			fmt.Println(m.textarea.Value())
-			return m, tea.Quit
 		case tea.KeyEnter:
 			err := m.c.SendMessage(m.textarea.Value())
 			if err != nil {
@@ -136,11 +185,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.textarea.Reset()
 		}
 	case protocol.MessageCommand:
-		// TODO: Set the user name here
-		m.messages = append(m.messages, m.senderStyle.Render("Out: ")+msg.Message)
+		m.messages = append(m.messages, m.senderStyle.Render(msg.Name+": ")+msg.Message)
 		m.viewport.SetContent(strings.Join(m.messages, "\n"))
 		m.viewport.GotoBottom()
-	// We handle errors just like any other message
 	case errMsg:
 		m.err = msg
 		return m, tea.Quit
@@ -149,10 +196,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(tiCmd, vpCmd)
 }
 
-func (m model) View() string {
-	return fmt.Sprintf(
-		"%s\n\n%s",
-		m.viewport.View(),
-		m.textarea.View(),
-	) + "\n\n"
+func updateName(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	m.textInput, cmd = m.textInput.Update(msg)
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyEnter:
+			if len(m.textInput.Value()) > 4 {
+				m.emptyName = false
+				m.name = m.textInput.Value()
+				err := m.c.SetName(m.name)
+				if err != nil {
+					m.err = err
+					return m, nil
+				}
+			}
+			return m, cmd
+		}
+
+	case errMsg:
+		m.err = msg
+		return m, nil
+	}
+
+	return m, nil
 }
