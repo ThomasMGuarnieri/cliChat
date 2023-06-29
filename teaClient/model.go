@@ -137,7 +137,7 @@ func updateChat(msg tea.Msg, m Model) (tea.Model, tea.Cmd) {
 			m.textarea.Reset()
 		}
 	case protocol.MessageCommand:
-		m.messages = append(m.messages, m.senderStyle.Render(m.name+": ")+msg.Message)
+		m.messages = append(m.messages, m.senderStyle.Render(msg.Name+": ")+msg.Message)
 		m.viewport.SetContent(strings.Join(m.messages, "\n"))
 		m.viewport.GotoBottom()
 	case errMsg:
@@ -157,7 +157,7 @@ func updateName(msg tea.Msg, m Model) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
-			if len(m.textInput.Value()) > 4 {
+			if len(m.textInput.Value()) > 4 && len(m.textInput.Value()) < protocol.NameSize {
 				m.emptyName = false
 				m.name = m.textInput.Value()
 				err := m.c.SetName(m.name)

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"log"
+	"strings"
 )
 
 type CommandReader struct {
@@ -26,12 +27,6 @@ func (r *CommandReader) Read() (interface{}, error) {
 
 	switch commandName {
 	case "MESSAGE ":
-		user, err := r.reader.ReadString(' ')
-
-		if err != nil {
-			return nil, err
-		}
-
 		message, err := r.reader.ReadString('\n')
 
 		if err != nil {
@@ -39,8 +34,8 @@ func (r *CommandReader) Read() (interface{}, error) {
 		}
 
 		return MessageCommand{
-			user[:len(user)-1],
-			message[:len(message)-1],
+			strings.Trim(message[:NameSize], " "),
+			message[NameSize+1 : len(message)-1],
 		}, nil
 
 	case "SEND ":
