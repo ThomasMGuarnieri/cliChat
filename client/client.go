@@ -1,6 +1,6 @@
 package client
 
-import "simpleChat/protocol"
+import "cliChat/protocol"
 
 type ChatClient interface {
 	Dial(address string) error

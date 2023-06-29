@@ -1,11 +1,11 @@
 package server
 
 import (
+	"cliChat/protocol"
 	"errors"
 	"io"
 	"log"
 	"net"
-	"simpleChat/protocol"
 	"sync"
 )
 

@@ -1,70 +1,22 @@
-package main
+package teaClient
 
 import (
-	"flag"
+	"cliChat/client"
+	"cliChat/protocol"
 	"fmt"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"io"
-	"log"
-	"simpleChat/client"
-	"simpleChat/protocol"
 	"strings"
 )
-
-func main() {
-	var err error
-
-	addr := flag.String("server", "localhost:3333", "Which server to connect to")
-
-	flag.Parse()
-
-	c := client.NewClient()
-	err = c.Dial(*addr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer c.Close()
-
-	go c.Start()
-
-	p := tea.NewProgram(initialModel(c))
-
-	go func(program *tea.Program) {
-		for {
-			select {
-			case err := <-c.Error():
-				if err == io.EOF {
-					program.Send(err)
-					log.Println("Connection closed connection from server.")
-					// TODO: Handle error with tea
-				} else {
-					// TODO: This always happen when hit ctrl + c
-					//  think in another way to exit this, or fix the panic
-					//  maybe we should finish this routine before exit the main
-					//  program, dont know
-					panic(err)
-				}
-			case msg := <-c.Incoming():
-				program.Send(msg)
-			}
-		}
-	}(p)
-
-	if _, err := p.Run(); err != nil {
-		log.Fatal(err)
-	}
-}
 
 type (
 	errMsg error
 )
 
-type model struct {
+type Model struct {
 	c           client.ChatClient
 	emptyName   bool
 	err         error
@@ -76,7 +28,7 @@ type model struct {
 	viewport    viewport.Model
 }
 
-func initialModel(cc client.ChatClient) model {
+func InitialModel(cc client.ChatClient) Model {
 	// TEXT AREA
 	ta := textarea.New()
 	ta.Placeholder = "Send a message..."
@@ -108,7 +60,7 @@ Seja gentil e aperte Enter.`)
 	ti.CharLimit = 156
 	ti.Width = 20
 
-	return model{
+	return Model{
 		c:           cc,
 		emptyName:   true,
 		err:         nil,
@@ -121,11 +73,11 @@ Seja gentil e aperte Enter.`)
 	}
 }
 
-func (m model) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	return tea.Batch(textarea.Blink, tea.EnterAltScreen, textinput.Blink)
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(tea.KeyMsg); ok {
 		k := msg.String()
 		if k == "esc" || k == "ctrl+c" {
@@ -140,7 +92,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return updateName(msg, m)
 }
 
-func (m model) View() string {
+func (m Model) View() string {
 	if !m.emptyName {
 		return chatView(m)
 	}
@@ -148,7 +100,7 @@ func (m model) View() string {
 	return nameView(m)
 }
 
-func chatView(m model) string {
+func chatView(m Model) string {
 	return fmt.Sprintf(
 		"%s\n\n%s",
 		m.viewport.View(),
@@ -156,7 +108,7 @@ func chatView(m model) string {
 	) + "\n\n"
 }
 
-func nameView(m model) string {
+func nameView(m Model) string {
 	return fmt.Sprintf(
 		"Say your name\n\n%s\n\n%s",
 		m.textInput.View(),
@@ -164,7 +116,7 @@ func nameView(m model) string {
 	) + "\n"
 }
 
-func updateChat(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
+func updateChat(msg tea.Msg, m Model) (tea.Model, tea.Cmd) {
 	var (
 		tiCmd tea.Cmd
 		vpCmd tea.Cmd
@@ -185,7 +137,7 @@ func updateChat(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 			m.textarea.Reset()
 		}
 	case protocol.MessageCommand:
-		m.messages = append(m.messages, m.senderStyle.Render(msg.Name+": ")+msg.Message)
+		m.messages = append(m.messages, m.senderStyle.Render(m.name+": ")+msg.Message)
 		m.viewport.SetContent(strings.Join(m.messages, "\n"))
 		m.viewport.GotoBottom()
 	case errMsg:
@@ -196,7 +148,7 @@ func updateChat(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(tiCmd, vpCmd)
 }
 
-func updateName(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
+func updateName(msg tea.Msg, m Model) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	m.textInput, cmd = m.textInput.Update(msg)

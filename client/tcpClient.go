@@ -1,9 +1,9 @@
 package client
 
 import (
+	"cliChat/protocol"
 	"log"
 	"net"
-	"simpleChat/protocol"
 )
 
 type TcpChatClient struct {

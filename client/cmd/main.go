@@ -2,12 +2,12 @@ package main
 
 import (
 	"bufio"
+	"cliChat/client"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"simpleChat/client"
 )
 
 func main() {

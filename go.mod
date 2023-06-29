@@ -1,4 +1,4 @@
-module simpleChat
+module cliChat
 
 go 1.20
 

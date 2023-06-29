@@ -1,6 +1,6 @@
 package main
 
-import "simpleChat/server"
+import "cliChat/server"
 
 func main() {
 	var s server.ChatServer
