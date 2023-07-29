@@ -33,8 +33,10 @@ func main() {
 			select {
 			case err := <-c.Error():
 				if err == io.EOF {
+					p.Kill()
 					log.Fatal("Connection closed by server")
 				} else {
+					p.Kill()
 					log.Fatal(err)
 				}
 			case msg := <-c.Incoming():
@@ -44,6 +46,7 @@ func main() {
 	}(p)
 
 	if _, err := p.Run(); err != nil {
+		p.Kill()
 		log.Fatal(err)
 	}
 }
